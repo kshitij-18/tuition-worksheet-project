@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from .main import main
 from pydantic import BaseModel, Field, ConfigDict
 from markdown_pdf import MarkdownPdf, Section
+from datetime import datetime
 
 
 app = FastAPI(description="A Backend which generates worksheets for students based on their class, subject and topics using an LLM agent which has access to the web")
@@ -33,12 +35,14 @@ class WorksheetRequest(BaseModel):
     )
 
 
-@app.post("/generate-worksheet", )
+@app.post("/generate-worksheet")
 def generate_worksheet(request: WorksheetRequest):
     response = main(student_class=request.student_class, subject=request.subject, topics=request.topics, questions=request.questions)
     worksheet_response_type = response['messages'][-1].content
     pdf = MarkdownPdf()
     pdf.add_section(Section(worksheet_response_type))
-    pdf.save("langchain_output.pdf")
-    return {"worksheet": worksheet_response_type}
+    datetime_string = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"{request.student_class}_{request.subject}_{'_'.join(request.topics)}_{datetime_string}.pdf"
+    pdf.save(filename)
+    return FileResponse(path=filename, media_type='application/pdf', filename=filename)
 
