@@ -1,0 +1,91 @@
+name: Build, Test and Deploy GenAI App
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        id: gcp-auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Fetch secrets from Secret Manager
+        id: fetch-secrets
+        uses: google-github-actions/get-secretmanager-secrets@v1
+        with:
+          secrets: |
+            OPENAI_API_KEY: projects/${{ secrets.GCP_PROJECT }}/secrets/OPENAI_API_KEY/versions/latest
+            TAVILY_API_KEY: projects/${{ secrets.GCP_PROJECT }}/secrets/TAVILY_API_KEY/versions/latest
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      - name: Build Docker Image
+        run: |
+          docker build -t asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:${{ github.sha }} \
+                       -t asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:latest .
+
+      - name: Test Docker Image
+        env:
+          OPENAI_API_KEY: ${{ steps.fetch-secrets.outputs.OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ steps.fetch-secrets.outputs.TAVILY_API_KEY }}
+        run: |
+          docker run --rm -e OPENAI_API_KEY="${OPENAI_API_KEY}" -e TAVILY_API_KEY="${TAVILY_API_KEY}" \
+            asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:${{ github.sha }} \
+            python -c "import api; print('App module loaded successfully')"
+
+      - name: Push Docker Image to Artifact Registry
+        run: |
+          docker push asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:${{ github.sha }}
+          docker push asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:latest
+
+      - name: Deploy to Cloud Run
+        env:
+          OPENAI_API_KEY: ${{ steps.fetch-secrets.outputs.OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ steps.fetch-secrets.outputs.TAVILY_API_KEY }}
+        run: |
+          gcloud run deploy backend-worksheet \
+            --image asia-south1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/worksheet-project/backend-service:${{ github.sha }} \
+            --platform managed \
+            --region asia-south1 \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars OPENAI_API_KEY="${OPENAI_API_KEY}",TAVILY_API_KEY="${TAVILY_API_KEY}"
+
+      - name: Remove temporary GCP credentials file
+        if: always()
+        run: |
+          rm -f "${{ steps.gcp-auth.outputs.credentials_file_path }}"
+          rm -f gha-creds-*.json
+
+      - name: Check the Git Status
+        run: |
+          git status
+          git log -1
+        
+      # - name: Set an env variable for the Hugging face space
+      #   run: |
+      #       pip install huggingface_hub
+      #       hf auth login --token ${{ secrets.HF_TOKEN }}
+      #       hf spaces secrets add kn2105/genai-app -s OPENAI_API_KEY=${{ steps.fetch-secrets.outputs.OPENAI_API_KEY }} -s TAVILY_API_KEY=${{ steps.fetch-secrets.outputs.TAVILY_API_KEY }}
+
+      # - name: Push to huggingface spaces
+      #   uses: huggingface/hub-sync@v0.1.0
+      #   with:
+      #     github_repo_id: ${{ github.repository }}
+      #     huggingface_repo_id: kn2105/genai-app
+      #     hf_token: ${{ secrets.HF_TOKEN }}
+
