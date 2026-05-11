@@ -1,12 +1,25 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from .main import main
 from pydantic import BaseModel, Field, ConfigDict
 from markdown_pdf import MarkdownPdf, Section
 from datetime import datetime
 
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5175"
+]
 
 app = FastAPI(description="A Backend which generates worksheets for students based on their class, subject and topics using an LLM agent which has access to the web")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class WorksheetRequest(BaseModel):
     student_class: int = Field(ge=1, le=12, description="The class of the student for whom the worksheet is to be generated. It should be an integer between 1 and 12.")
