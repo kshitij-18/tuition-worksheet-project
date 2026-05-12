@@ -75,17 +75,4 @@ jobs:
         run: |
           git status
           git log -1
-        
-      # - name: Set an env variable for the Hugging face space
-      #   run: |
-      #       pip install huggingface_hub
-      #       hf auth login --token ${{ secrets.HF_TOKEN }}
-      #       hf spaces secrets add kn2105/genai-app -s OPENAI_API_KEY=${{ steps.fetch-secrets.outputs.OPENAI_API_KEY }} -s TAVILY_API_KEY=${{ steps.fetch-secrets.outputs.TAVILY_API_KEY }}
-
-      # - name: Push to huggingface spaces
-      #   uses: huggingface/hub-sync@v0.1.0
-      #   with:
-      #     github_repo_id: ${{ github.repository }}
-      #     huggingface_repo_id: kn2105/genai-app
-      #     hf_token: ${{ secrets.HF_TOKEN }}
 

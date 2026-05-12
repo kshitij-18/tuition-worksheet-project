@@ -9,7 +9,9 @@ from datetime import datetime
 origins = [
     "http://localhost",
     "http://localhost:3000",
-    "http://localhost:5175"
+    "http://localhost:5175",
+    "http://localhost:8080",
+    "http://localhost:8000"
 ]
 
 app = FastAPI(description="A Backend which generates worksheets for students based on their class, subject and topics using an LLM agent which has access to the web")
