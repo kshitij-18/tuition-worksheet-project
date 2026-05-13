@@ -12,7 +12,8 @@ origins = [
     "http://localhost:5175",
     "http://localhost:8080",
     "http://localhost:8000",
-    "https://frontend-worksheet-574042021763.asia-south1.run.app"
+    "https://frontend-worksheet-574042021763.asia-south1.run.app",
+    "https://frontend-worksheet-574042021763.asia-south1.run.app/"
 ]
 
 app = FastAPI(description="A Backend which generates worksheets for students based on their class, subject and topics using an LLM agent which has access to the web")
